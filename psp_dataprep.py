@@ -191,6 +191,8 @@ def add_gaps(data):
     timeres = np.mean(timediff)
     print(f"Time res: {timeres}")
     cadence=mode(timediff)
+    if developer ==1:
+        print(f"cadence type: {type(cadence)}")
     thres = cadence*2
     thres=float(thres)
 
@@ -206,15 +208,38 @@ def add_gaps(data):
         print(f"timediff type {type(timediff[i])}")
 
     
-        
+
+    # Find gaps and measure their lengths    
     gap_indices = []
+    gap_lengths = []
     for i in range(0,len(inseconds)):
         if inseconds[i]>thres:
             gap_indices.append(i)
+            gap_lengths.append(round(inseconds[i]/cadence))
+
+
+    # Add gaps
+    cadence_dt=dt.timedelta(seconds=cadence)
+    index_offset = 0
+    for j in range(0,len(gap_indices)):
+        for i in range(0, gap_lengths[j]):
+            current_gap_index = gap_indices[j]+i+index_offset
+            print(current_gap_index)
+            data.epoch = np.insert(data.epoch,current_gap_index, values=data.epoch[current_gap_index-1]+cadence_dt,axis=0)
+            data.data = np.insert(data.data, current_gap_index, values=0, axis=0)
+        index_offset = index_offset + gap_lengths[j]
+        
+            
+
+
+
+
 
     if developer == 1:
         print(f"Length gap_indices: {len(gap_indices)}")
         print(f"gap_indices: {gap_indices}")
+        print(f"gap_lengths: {gap_lengths}")
+
 
 
     if developer == 1:
@@ -230,12 +255,6 @@ def add_gaps(data):
             else:
                 break
         plt.show()
-
-    
-    
-
-
-
 
     return data
             

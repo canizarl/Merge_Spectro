@@ -141,6 +141,45 @@ def add_gaps(data):
     #     print(epochtest[i])
 
 
+    # use the year month and day of the first item in epoch list to get the date of observation
+    t0 = data.epoch[0]
+    if developer == 1:
+        print(f"t0: {t0}")
+
+    # date of observation
+    year = t0.year
+    month = t0.month
+    day = t0.day
+     
+    # generic begining and end of the day 
+    day_start = dt.datetime(year, month, day, 0, 0, 0)
+    day_end = day_start + dt.timedelta(days=1)
+
+    if developer == 1:
+        print(f"day_start : {day_start}")
+        print(f"day_end : {day_end}")
+        print(f"day/month/year : {day}/{month}/{year}")
+
+
+    # check beginning of the day. if Day doesnt start at midnight, add. 
+    if data.epoch[0] > day_start:
+        if developer ==1:
+            if verbose ==1:
+                print(data.epoch)
+        data.epoch = np.insert(data.epoch,0, values=day_start,axis=0)
+        data.data = np.insert(data.data, 0, values=0, axis = 1)
+        print("Begining of day added")
+        
+
+
+
+    #check end of the day. if day doesnt end at midnight of next day, add. 
+    if data.epoch[-1]<day_end:
+        data.epoch = np.insert(data.epoch,len(data.epoch), values=day_end,axis=0)
+        data.data = np.insert(data.data, data.data.shape[1], values=0, axis=1)
+        print("End of day added")    
+
+
     # time resolution
     timediff = []
     for i in range(0,len(data.epoch)-1):
@@ -193,6 +232,11 @@ def add_gaps(data):
         plt.show()
 
     
+    
+
+
+
+
     return data
             
 
@@ -217,7 +261,7 @@ if __name__=='__main__':
 
     year = "2019"
     month = "04"
-    day = "18"
+    day = "20" #"18"
 
     add_gaps_option= 1
 

@@ -167,7 +167,7 @@ def add_gaps(data):
             if verbose ==1:
                 print(data.epoch)
         data.epoch = np.insert(data.epoch,0, values=day_start,axis=0)
-        data.data = np.insert(data.data, 0, values=0, axis = 1)
+        data.data = np.insert(data.data, 0, values=0, axis=0)
         print("Begining of day added")
         
 
@@ -176,7 +176,7 @@ def add_gaps(data):
     #check end of the day. if day doesnt end at midnight of next day, add. 
     if data.epoch[-1]<day_end:
         data.epoch = np.insert(data.epoch,len(data.epoch), values=day_end,axis=0)
-        data.data = np.insert(data.data, data.data.shape[1], values=0, axis=1)
+        data.data = np.insert(data.data, data.data.shape[0], values=0, axis=0)
         print("End of day added")    
 
 
@@ -306,8 +306,8 @@ if __name__=='__main__':
     # add gaps 
     if add_gaps_option == 1:
         print("add_gaps not implemented yet")
-        add_gaps(lsd)
-        #add_gaps(hsd)
+        lsd = add_gaps(lsd)
+        hsd = add_gaps(hsd)
 
     
     

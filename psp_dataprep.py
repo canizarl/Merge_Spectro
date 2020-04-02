@@ -134,12 +134,63 @@ def data_from_CDF(date, myfile):
     return data, epoch, freqs    
 
 
+def find_gaps(data):
+    # time resolution
+    timediff = []
+    for i in range(0,len(data.epoch)-1):
+        diff = data.epoch[i+1]-data.epoch[i]
+        #print(diff)
+        buffer = diff.total_seconds()
+        timediff.append(float(buffer))
+
+    timeres = np.mean(timediff)
+    print(f"Time res: {timeres}")
+    cadence=mode(timediff)
+    if developer ==1:
+        print(f"cadence type: {type(cadence)}")
+    thres = cadence*3
+    thres=float(thres)
+
+    inseconds = []
+    for each in timediff:
+        inseconds.append(float (abs(each)))
+
+    if developer == 1:
+        if verbose == 1:
+            print(inseconds)
+        print(f"inseconds type {type(inseconds[1])}")
+        print(f"thres type {type(thres)}")
+        print(f"timediff type {type(timediff[i])}")
+
+    # Find gaps and measure their lengths    
+    gap_indices = []
+    gap_lengths = []
+    for i in range(0,len(inseconds)):
+        if inseconds[i]>thres:
+            gap_indices.append(i)
+            gap_lengths.append(round(inseconds[i]/cadence))
+
+    if developer == 1:
+        plt.figure()
+        plt.plot(inseconds[:], 'r-')
+        plt.plot(inseconds[:], 'r*')
+        c = 0
+        for i in range(0, len(inseconds)):
+            if c < len(gap_indices):
+                if i == gap_indices[c]:
+                    plt.plot(gap_indices[c],inseconds[i],'b*')    
+                    c= c+1
+            else:
+                break
+        plt.show()
+
+    return cadence, gap_indices, gap_lengths 
+
+    
+
+
+
 def add_gaps(data):
-
-    # epochtest = np.subtract(epochl,epochh)
-    # for i in range(len(epochtest)):
-    #     print(epochtest[i])
-
 
     # use the year month and day of the first item in epoch list to get the date of observation
     t0 = data.epoch[0]
@@ -180,43 +231,7 @@ def add_gaps(data):
         print("End of day added")    
 
 
-    # time resolution
-    timediff = []
-    for i in range(0,len(data.epoch)-1):
-        diff = data.epoch[i+1]-data.epoch[i]
-        #print(diff)
-        buffer = diff.total_seconds()
-        timediff.append(float(buffer))
-
-    timeres = np.mean(timediff)
-    print(f"Time res: {timeres}")
-    cadence=mode(timediff)
-    if developer ==1:
-        print(f"cadence type: {type(cadence)}")
-    thres = cadence*2
-    thres=float(thres)
-
-    inseconds = []
-    for each in timediff:
-        inseconds.append(float (abs(each)))
-
-    if developer == 1:
-        if verbose == 1:
-            print(inseconds)
-        print(f"inseconds type {type(inseconds[1])}")
-        print(f"thres type {type(thres)}")
-        print(f"timediff type {type(timediff[i])}")
-
-    
-
-    # Find gaps and measure their lengths    
-    gap_indices = []
-    gap_lengths = []
-    for i in range(0,len(inseconds)):
-        if inseconds[i]>thres:
-            gap_indices.append(i)
-            gap_lengths.append(round(inseconds[i]/cadence))
-
+    cadence, gap_indices, gap_lengths = find_gaps(data)
 
     # Add gaps
     cadence_dt=dt.timedelta(seconds=cadence)
@@ -224,15 +239,15 @@ def add_gaps(data):
     for j in range(0,len(gap_indices)):
         for i in range(0, gap_lengths[j]):
             current_gap_index = gap_indices[j]+i+index_offset
-            print(current_gap_index)
+            
+            if developer == 1:
+                if verbose == 1:
+                    print(current_gap_index)
+
             data.epoch = np.insert(data.epoch,current_gap_index, values=data.epoch[current_gap_index-1]+cadence_dt,axis=0)
             data.data = np.insert(data.data, current_gap_index, values=0, axis=0)
         index_offset = index_offset + gap_lengths[j]
         
-            
-
-
-
 
 
     if developer == 1:
@@ -240,27 +255,64 @@ def add_gaps(data):
         print(f"gap_indices: {gap_indices}")
         print(f"gap_lengths: {gap_lengths}")
 
-
+    cadence, gap_indices, gap_lengths = find_gaps(data)
 
     if developer == 1:
-        plt.figure(2)
-        plt.plot(inseconds[:], 'r-')
-        plt.plot(inseconds[:], 'r*')
-        c = 0
-        for i in range(0, len(inseconds)):
-            if c < len(gap_indices):
-                if i == gap_indices[c]:
-                    plt.plot(gap_indices[c],inseconds[i],'b*')    
-                    c= c+1
-            else:
-                break
-        plt.show()
+        print(f"Length gap_indices: {len(gap_indices)}")
+        print(f"gap_indices: {gap_indices}")
+        print(f"gap_lengths: {gap_lengths}")
+
+    if len(gap_indices) == 0:
+        print("Gaps added correctly")
+
+
 
     return data
             
 
 
 
+
+
+def backSub(data, percentile=1):
+    """ Background subtraction:
+        This function has been modified from Eoin Carley's backsub funcion
+        https://github.com/eoincarley/ilofar_scripts/blob/master/Python/bst/plot_spectro.py
+        
+        data:        numpy 2D matrix of floating values for dynamic spectra 
+        percentile:  integer value def = 1. bottom X percentile of time slices
+                                     
+        
+        
+        METHOD ----
+        * This function takes the bottom x percentile of time slices  
+        * Averages those time slices.
+        * Subtracts the average value from the whole dataset 
+        
+        
+        """
+    
+    print("Start of Background Subtraction of data")
+    dat = data.data
+    # dat = np.log10(dat)
+    dat[np.where(np.isinf(dat)==True)] = 0.0
+    dat_std = np.std(dat, axis=0)
+    dat_std = dat_std[np.nonzero(dat_std)]
+    min_std_indices = np.where( dat_std < np.percentile(dat_std, percentile) )[0]
+    min_std_spec = dat[:, min_std_indices]
+    min_std_spec = np.mean(min_std_spec, axis=1)
+    dat = np.transpose(np.divide( np.transpose(dat), min_std_spec))
+
+
+    data.data = dat
+
+
+    #Alternative: Normalizing frequency channel responses using median of values.
+        #for sb in np.arange(data.shape[0]):
+        #       data[sb, :] = data[sb, :]/np.mean(data[sb, :])
+
+    print("Background Subtraction of data done")
+    return data
 
 
 
@@ -270,19 +322,23 @@ def add_gaps(data):
 
 
 if __name__=='__main__':
-    developer = 1
-    verbose = 0
+    
     starttime = dt.datetime.now()
     print(' ')
     print(' ')
     print(' Running psp_dataprep.py')
     print(' ')
 
-    year = "2019"
-    month = "04"
-    day = "20" #"18"
+    year = "2019"    ## must be in YYYY format 
+    month = "04"     ## Must be in MM format
+    day = "09"       ## Must be in DD format
 
+
+    # options
     add_gaps_option= 1
+    back_sub_option = 1
+    developer = 1
+    verbose = 0
 
 
     t0 = dt.datetime(int(year),int(month),int(day))
@@ -320,32 +376,34 @@ if __name__=='__main__':
     lsd = data_spectro(datal,epochl,freql)      #lowband spectral data
     hsd = data_spectro(datah,epochh,freqh)      #highband spectral data
 
-    
+    # backsub
+    if back_sub_option == 1:
+        lsd = backSub(lsd)
+        hsd = backSub(hsd)
 
     # add gaps 
     if add_gaps_option == 1:
-        print("add_gaps not implemented yet")
         lsd = add_gaps(lsd)
         hsd = add_gaps(hsd)
-
     
     
 
 
 
-    
-    
-    
-    
     if developer == 1:
         # quick plot for now. 
         v_min = np.percentile(hsd.data, 1)
         v_max = np.percentile(hsd.data, 99)
-        plt.figure(1)
+        plt.figure()
         plt.imshow(hsd.data.T, aspect='auto', vmin=v_min, vmax=v_max)
-        plt.show()
-        
 
+        
+        # quick plot for now. 
+        v_min = np.percentile(lsd.data, 1)
+        v_max = np.percentile(lsd.data, 99)
+        plt.figure()
+        plt.imshow(lsd.data.T, aspect='auto', vmin=v_min, vmax=v_max)
+        plt.show()
 
 
 

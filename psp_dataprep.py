@@ -40,6 +40,7 @@ import numpy as np
 from statistics import mode
 import math
 import os
+import sunpy
 #import cdfopenV2 as cdfo
 
 
@@ -82,6 +83,7 @@ class fnames:
         fnames.dataname = "psp_fld_l2_rfs_"+fnames.band+"_auto_averages_ch"+ch+"_"+fnames.dipoles
         fnames.epochname = "epoch_"+fnames.band+"_auto_averages_ch"+ch+"_"+fnames.dipoles
         fnames.freqname = "frequency_"+fnames.band+"_auto_averages_ch"+ch+"_"+fnames.dipoles
+
 
 
 class data_spectro:
@@ -182,11 +184,11 @@ def find_gaps(data):
                     c= c+1
             else:
                 break
-        plt.show()
+        plt.title("Time differences")
+        plt.xlabel("Index number")
+        plt.ylabel(r'$\Delta$T   [s]')
 
     return cadence, gap_indices, gap_lengths 
-
-    
 
 
 
@@ -273,7 +275,6 @@ def add_gaps(data):
 
 
 
-
 def backSub(data, percentile=1):
     """ Background subtraction:
         This function has been modified from Eoin Carley's backsub funcion
@@ -291,6 +292,11 @@ def backSub(data, percentile=1):
         
         
         """
+    # Get time slices with standard devs in the bottom nth percentile.
+    # Get average spectra from these time slices.
+    # Devide through by this average spec.
+    # Expects (row, column)
+
     
     print("Start of Background Subtraction of data")
     dat = data.data
@@ -317,7 +323,37 @@ def backSub(data, percentile=1):
 
 
 
+def save_data(data,yearS,monthS,dayS,band):
+    cwd = os.getcwd()
+    
+    directory_extracted =  cwd+"/ExtractedData" 
+    directory_year = directory_extracted + "/"+yearS
+    directory_month = directory_year + "/"+monthS
+    
+    if not os.path.exists(directory_extracted):
+        os.makedirs(directory_extracted)
+    
+    if not os.path.exists(directory_year):
+        os.makedirs(directory_year)
+        
+    if not os.path.exists(directory_month):
+        os.makedirs(directory_month)
 
+
+    fname_data = directory_month+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_data_"+band+".txt"
+    fname_freq = directory_month+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_freq_"+band+".txt"
+    fname_time = directory_month+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_time_"+band+".txt"
+
+    
+    np.savetxt(fname_data, data.data, delimiter=",")
+    np.savetxt(fname_freq, data.freq, delimiter=",")
+
+    print(type(data.epoch))
+
+    for i in range(0,len(data.epoch)): 
+        data.epoch[i] = dt.datetime.timestamp(data.epoch[i])
+    np.savetxt(fname_time, data.epoch, delimiter=",")
+    
 
 
 
@@ -331,12 +367,13 @@ if __name__=='__main__':
 
     year = "2019"    ## must be in YYYY format 
     month = "04"     ## Must be in MM format
-    day = "09"       ## Must be in DD format
+    day = "26"       ## Must be in DD format
 
 
     # options
     add_gaps_option= 1
     back_sub_option = 1
+    save_data_option = 1
     developer = 1
     verbose = 0
 
@@ -378,14 +415,30 @@ if __name__=='__main__':
 
     # backsub
     if back_sub_option == 1:
+        print(lsd.data[2])
         lsd = backSub(lsd)
         hsd = backSub(hsd)
+        print(lsd.data[2])
+
 
     # add gaps 
     if add_gaps_option == 1:
         lsd = add_gaps(lsd)
         hsd = add_gaps(hsd)
+
+    # save in txt files
+    if save_data_option == 1:
+        save_data(lsd,year,month,day,"l")
+        save_data(hsd,year,month,day,"h")
+
     
+    if developer == 1:
+        print(f"t0:{lsd.epoch[0]}")
+        plt.figure()
+        plt.plot(lsd.epoch, 'r*')
+        plt.title("Date as function of data index")
+        plt.xlabel("Epoch data index")
+        plt.ylabel("date")
     
 
 
@@ -395,6 +448,9 @@ if __name__=='__main__':
         v_min = np.percentile(hsd.data, 1)
         v_max = np.percentile(hsd.data, 99)
         plt.figure()
+        plt.title("Quick Dynamic spectra view")
+        plt.xlabel("epoch data index")
+        plt.ylabel("frequency data index")
         plt.imshow(hsd.data.T, aspect='auto', vmin=v_min, vmax=v_max)
 
         
@@ -402,6 +458,9 @@ if __name__=='__main__':
         v_min = np.percentile(lsd.data, 1)
         v_max = np.percentile(lsd.data, 99)
         plt.figure()
+        plt.title("Quick Dynamic spectra view")
+        plt.xlabel("epoch data index")
+        plt.ylabel("frequency data index")
         plt.imshow(lsd.data.T, aspect='auto', vmin=v_min, vmax=v_max)
         plt.show()
 

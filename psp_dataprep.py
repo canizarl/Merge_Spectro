@@ -329,6 +329,9 @@ def save_data(data,yearS,monthS,dayS,band):
     directory_extracted =  cwd+"/ExtractedData" 
     directory_year = directory_extracted + "/"+yearS
     directory_month = directory_year + "/"+monthS
+    directory = directory_month + "/"+dayS
+
+    
     
     if not os.path.exists(directory_extracted):
         os.makedirs(directory_extracted)
@@ -339,10 +342,13 @@ def save_data(data,yearS,monthS,dayS,band):
     if not os.path.exists(directory_month):
         os.makedirs(directory_month)
 
+    if not os.path.exists(directory):
+        os.makedirs(directory)
 
-    fname_data = directory_month+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_data_"+band+".txt"
-    fname_freq = directory_month+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_freq_"+band+".txt"
-    fname_time = directory_month+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_time_"+band+".txt"
+        
+    fname_data = directory+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_data_"+band+".txt"
+    fname_freq = directory+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_freq_"+band+".txt"
+    fname_time = directory+"/PSP_" + yearS + "_" + monthS + "_" + dayS+"_time_"+band+".txt"
 
     
     np.savetxt(fname_data, data.data, delimiter=",")
